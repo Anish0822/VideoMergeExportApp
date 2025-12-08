@@ -84,7 +84,6 @@ class MainActivity : AppCompatActivity() {
         exoPlayer?.playWhenReady = true
     }
 
-    // ✅ ADD TEXT
     private fun addTextOnVideo() {
 
         val input = TextView(this)
@@ -118,7 +117,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ✅ ADD STICKER
     private fun addStickerOnVideo() {
         val imageView = ImageView(this)
         imageView.setImageResource(R.drawable.sticker)
@@ -202,7 +200,6 @@ class MainActivity : AppCompatActivity() {
         return kotlin.math.sqrt(x * x + y * y)
     }
 
-    // ✅ SAVE VIDEO TO GALLERY
     private fun saveFinalVideoToGallery(file: File) {
         try {
             val resolver = contentResolver
