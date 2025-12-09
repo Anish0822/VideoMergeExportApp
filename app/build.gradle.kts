@@ -53,8 +53,8 @@ dependencies {
 
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-ui:1.8.0")
-    implementation(files("libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar"))
-//    implementation(files("libs/smart-exception-common-0.2.1.jar"))
+//    implementation(files("libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar"))
+    implementation(files("libs/ffmpeg-kit-lts-ndk-r25-16k.aar"))
     implementation("com.arthenica:smart-exception-java:0.2.1")
 
 }

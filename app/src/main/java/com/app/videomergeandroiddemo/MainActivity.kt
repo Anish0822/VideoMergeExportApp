@@ -234,7 +234,7 @@ class MainActivity : AppCompatActivity() {
     private fun exportFinalVideo() {
         if (selectedVideoUri == null) return
 
-        Toast.makeText(this, "Rendering video...", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Downloading...", Toast.LENGTH_LONG).show()
 
         val inputVideoPath = copyVideoToCache(selectedVideoUri!!)
         val (videoW, videoH) = getVideoResolution(selectedVideoUri!!)
@@ -251,9 +251,17 @@ class MainActivity : AppCompatActivity() {
             "edited_${System.currentTimeMillis()}.mp4"
         )
 
-        // ✅✅✅ SINGLE LINE COMMAND (CRITICAL FIX)
+        /*val command =
+            "-y -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
+                    "-filter_complex \"[0:v]transpose=1[v0];[v0][1:v]overlay=0:0:format=auto\" " +
+                    "-pix_fmt yuv420p " +
+                    "\"${outputFile.absolutePath}\""*/
+
         val command =
-            "-y -i \"$inputVideoPath\" -i \"$overlayImagePath\" -filter_complex overlay=0:0 -preset ultrafast -pix_fmt yuv420p \"${outputFile.absolutePath}\""
+            "-y -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
+                    "-filter_complex \"[0:v][1:v]overlay=0:0:format=auto\" " +
+                    "-pix_fmt yuv420p " +
+                    "\"${outputFile.absolutePath}\""
 
         FFmpegKit.executeAsync(command) { session ->
 
@@ -289,7 +297,6 @@ class MainActivity : AppCompatActivity() {
         retriever.release()
         return Pair(width, height)
     }
-
 
     private fun captureOverlayBitmap(videoWidth: Int, videoHeight: Int): String {
         val folder = File(cacheDir, "overlay")
