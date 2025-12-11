@@ -236,12 +236,24 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Downloading...", Toast.LENGTH_LONG).show()
 
+        // Copy video to temp
         val inputVideoPath = copyVideoToCache(selectedVideoUri!!)
-        val (videoW, videoH) = getVideoResolution(selectedVideoUri!!)
+
+        // Read metadata
+        val rotation = getVideoRotation(selectedVideoUri!!)
+        val (rawW, rawH) = getVideoResolution(selectedVideoUri!!)
+
+        // Determine correct output width/height after rotation
+        val (videoW, videoH) = when (rotation) {
+            90, 270 -> Pair(rawH, rawW)  // swapped for portrait
+            else -> Pair(rawW, rawH)
+        }
+
+        // Capture overlay exactly in final size
         val overlayImagePath = captureOverlayBitmap(videoW, videoH)
 
-        val outputDir = getExternalFilesDir(Environment.DIRECTORY_MOVIES)
-        if (outputDir == null) {
+        // Output file creation
+        val outputDir = getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: run {
             Toast.makeText(this, "Storage not available", Toast.LENGTH_LONG).show()
             return
         }
@@ -251,16 +263,20 @@ class MainActivity : AppCompatActivity() {
             "edited_${System.currentTimeMillis()}.mp4"
         )
 
-        /*val command =
-            "-y -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
-                    "-filter_complex \"[0:v]transpose=1[v0];[v0][1:v]overlay=0:0:format=auto\" " +
-                    "-pix_fmt yuv420p " +
-                    "\"${outputFile.absolutePath}\""*/
+        // Rotation logic + Motorola/Redmi fix
+        val rotateFilter = when {
+            rotation == 90 -> "transpose=1,"
+            rotation == 180 -> "hflip,vflip,"       // safer than transpose*2
+            rotation == 270 -> "transpose=2,"
+            rotation == 0 && rawW > rawH -> "transpose=1,"   // Motorola/Redmi BUG FIX
+            else -> ""
+        }
 
         val command =
             "-y -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
-                    "-filter_complex \"[0:v][1:v]overlay=0:0:format=auto\" " +
-                    "-pix_fmt yuv420p " +
+                    "-filter_complex \"[0:v]$rotateFilter scale=$videoW:$videoH[v0];" +
+                    "[v0][1:v]overlay=0:0:format=auto\" " +
+                    "-c:a copy -pix_fmt yuv420p " +
                     "\"${outputFile.absolutePath}\""
 
         FFmpegKit.executeAsync(command) { session ->
@@ -278,6 +294,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun getVideoRotation(uri: Uri): Int {
+        val retriever = android.media.MediaMetadataRetriever()
+        retriever.setDataSource(this, uri)
+        val rotation = retriever.extractMetadata(
+            android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION
+        )?.toInt() ?: 0
+        retriever.release()
+        return rotation
     }
 
     private fun getVideoResolution(uri: Uri): Pair<Int, Int> {
