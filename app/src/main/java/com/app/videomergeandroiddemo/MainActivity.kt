@@ -287,6 +287,7 @@ class MainActivity : AppCompatActivity() {
             "-y -noautorotate -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
                     "-filter_complex \"[0:v]$rotateFilter,scale=$finalW:$finalH[v0];" +
                     "[v0][1:v]overlay=0:0:format=auto\" " +
+                    "-c:v h264_mediacodec -b:v 12M -maxrate 12M -bufsize 24M " +
                     "-c:a copy -pix_fmt yuv420p " +
                     "\"${outputFile.absolutePath}\""
 
