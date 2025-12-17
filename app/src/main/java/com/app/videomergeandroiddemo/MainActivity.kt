@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -180,12 +181,6 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
-
-        // ✅ LONG PRESS DELETE
-        view.setOnLongClickListener {
-            binding.overlayContainer.removeView(it)
-            true
-        }
     }
 
     private fun rotation(event: MotionEvent): Float {
@@ -283,13 +278,24 @@ class MainActivity : AppCompatActivity() {
             else -> "null"
         }
 
-        val command =
+        val command = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ (BEST QUALITY, FAST)
             "-y -noautorotate -i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
                     "-filter_complex \"[0:v]$rotateFilter,scale=$finalW:$finalH[v0];" +
                     "[v0][1:v]overlay=0:0:format=auto\" " +
                     "-c:v h264_mediacodec -b:v 12M -maxrate 12M -bufsize 24M " +
                     "-c:a copy -pix_fmt yuv420p " +
                     "\"${outputFile.absolutePath}\""
+        } else {
+            // Android 10 & below (MAX COMPATIBILITY)
+            "-y -noautorotate " +
+                    "-i \"$inputVideoPath\" -i \"$overlayImagePath\" " +
+                    "-filter_complex \"[0:v]$rotateFilter,scale=$finalW:$finalH,format=yuv420p[v0];" +
+                    "[v0][1:v]overlay=0:0\" " +
+                    "-c:v mpeg4 -q:v 4 " +
+                    "-c:a aac -b:a 128k " +
+                    "\"${outputFile.absolutePath}\""
+        }
 
         FFmpegKit.executeAsync(command) { session ->
 
