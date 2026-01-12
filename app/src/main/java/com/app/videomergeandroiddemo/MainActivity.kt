@@ -34,12 +34,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var exoPlayer: ExoPlayer? = null
     private var selectedVideoUri: Uri? = null
+    private var editMode: EditMode? = null
+    private var selectedImageUri: Uri? = null
 
-    private val pickVideoLauncher =
+    private val pickMediaLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
-                selectedVideoUri = it
-                playSelectedVideo(it)
+                val type = contentResolver.getType(it)
+
+                if (type?.startsWith("video") == true) {
+                    editMode = EditMode.VIDEO
+                    selectedVideoUri = it
+                    playSelectedVideo(it)
+                } else if (type?.startsWith("image") == true) {
+                    editMode = EditMode.IMAGE
+                    selectedImageUri = it
+                    showImage(it)
+                }
             }
         }
 
@@ -54,14 +65,14 @@ class MainActivity : AppCompatActivity() {
     private fun clickEvent() {
 
         binding.btnUpload.setOnClickListener {
-            pickVideoLauncher.launch("video/*")
+            pickMediaLauncher.launch("*/*")
         }
 
         binding.btnDownload.setOnClickListener {
-            if (selectedVideoUri == null) {
-                Toast.makeText(this, "Please upload video first", Toast.LENGTH_SHORT).show()
-            } else {
-                exportFinalVideo()
+            when (editMode) {
+                EditMode.VIDEO -> exportFinalVideo()
+                EditMode.IMAGE -> exportFinalImage()
+                else -> Toast.makeText(this, "Select media first", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -84,6 +95,13 @@ class MainActivity : AppCompatActivity() {
         exoPlayer?.setMediaItem(mediaItem)
         exoPlayer?.prepare()
         exoPlayer?.playWhenReady = true
+    }
+
+    private fun showImage(uri: Uri) {
+        binding.playerView.visibility = View.GONE
+        binding.imageView.visibility = View.VISIBLE
+
+        binding.imageView.setImageURI(uri)
     }
 
     private fun addTextOnVideo() {
@@ -311,6 +329,48 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun exportFinalImage() {
+        val bitmap = createBitmap(binding.overlayContainer.width, binding.overlayContainer.height)
+
+        val canvas = Canvas(bitmap)
+
+        // Draw base image
+        binding.imageView.draw(canvas)
+
+        // Draw overlays
+        binding.overlayContainer.draw(canvas)
+
+        val file = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "edited_${System.currentTimeMillis()}.jpg"
+        )
+
+        FileOutputStream(file).use {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it)
+        }
+
+        saveImageToGallery(file)
+    }
+
+    private fun saveImageToGallery(file: File) {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, file.name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+        }
+
+        val uri = contentResolver.insert(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            values
+        ) ?: return
+
+        contentResolver.openOutputStream(uri)?.use { out ->
+            file.inputStream().copyTo(out)
+        }
+
+        Toast.makeText(this, "✅ Image saved to Gallery", Toast.LENGTH_LONG).show()
     }
 
     private fun captureOverlayBitmap(videoWidth: Int, videoHeight: Int): String {
